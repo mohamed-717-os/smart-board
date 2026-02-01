@@ -1,0 +1,8 @@
+{
+  "name": "Infinite Mind Canvas",
+  "description": "An infinite smart whiteboard powered by Gemini Live. Collaborate with voice-controlled AI agents to draw, visualize high-quality diagrams, and generate interactive simulations.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
