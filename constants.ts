@@ -9,6 +9,18 @@ export const MODEL_NAMES = {
 
 export const whiteboardTools: FunctionDeclaration[] = [
   {
+    name: 'pan_view',
+    description: 'Moves the view (camera) to a specific location on the board. Use this when you add new elements to ensure the user sees them.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        x: { type: Type.NUMBER, description: 'Target Center X' },
+        y: { type: Type.NUMBER, description: 'Target Center Y' },
+      },
+      required: ['x', 'y'],
+    },
+  },
+  {
     name: 'draw_rectangle',
     description: 'Draws a rectangle.',
     parameters: {
@@ -100,7 +112,7 @@ export const whiteboardTools: FunctionDeclaration[] = [
   },
   {
     name: 'generate_image',
-    description: 'Generates a high-quality image using Nano Banana (Imagen). Use this for complex scenes, diagrams, or photorealistic requests.',
+    description: 'Generates a high-quality raster image using Nano Banana (Imagen). Use this for complex scenes, artistic requests, or photorealistic images.',
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -114,16 +126,29 @@ export const whiteboardTools: FunctionDeclaration[] = [
   },
   {
     name: 'generate_simulation',
-    description: 'Generates an interactive HTML/JS simulation using Gemini 3 capabilities. Use this for physics, math, or coding simulations.',
+    description: 'Generates an interactive HTML/JS simulation. Use this for physics demos, math visualizations, or coding tasks. This calls Gemini 3.',
     parameters: {
       type: Type.OBJECT,
       properties: {
         title: { type: Type.STRING, description: 'Title' },
-        code: { type: Type.STRING, description: 'HTML body content with script' },
+        prompt: { type: Type.STRING, description: 'Description of the simulation behavior' },
         x: { type: Type.NUMBER, description: 'X position' },
         y: { type: Type.NUMBER, description: 'Y position' },
       },
-      required: ['title', 'code', 'x', 'y'],
+      required: ['title', 'prompt', 'x', 'y'],
+    },
+  },
+  {
+    name: 'generate_vector_drawing',
+    description: 'Generates a complex vector drawing (flowcharts, diagrams, house plans) using Gemini 3. Use this when you need "complete shapes" or structured diagrams that are too complex to draw manually but should remain editable.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        prompt: { type: Type.STRING, description: 'Description of what to draw' },
+        x: { type: Type.NUMBER, description: 'X position' },
+        y: { type: Type.NUMBER, description: 'Y position' },
+      },
+      required: ['prompt', 'x', 'y'],
     },
   },
   {
@@ -149,8 +174,9 @@ export const COLORS = [
 ];
 
 export const SYSTEM_INSTRUCTION = `You are a smart, collaborative whiteboard agent.
-- For simple actions (move objects, clear board, simple geometric shapes, simple sketches), perform them directly using the drawing tools.
-- For complex visual requests (detailed art, complex diagrams, specific scenes), use the 'generate_image' tool (powered by Nano Banana).
-- For interactive tasks (physics demos, coding, calculators), use the 'generate_simulation' tool (powered by Gemini 3).
-- You can see the user's canvas. When asked to "look", analyze the video stream.
-- Always choose the best tool for the job. Do not say "I can't do that", instead use the appropriate generator tool.`;
+- **View Control**: If you create content outside the current view, use 'pan_view' to move the camera to it.
+- **Simple Actions**: For simple shapes, text, or moving objects, perform them directly.
+- **Complex Vectors**: For structured diagrams (flowcharts, architecture, complex shapes), use 'generate_vector_drawing' (Calls Gemini 3).
+- **Raster Images**: For artistic, photorealistic, or very complex scenes, use 'generate_image' (Calls Imagen).
+- **Simulations**: For interactive code, physics, or math demos, use 'generate_simulation' (Calls Gemini 3).
+- Always choose the best tool. Do not say "I can't", delegate to the generator tools.`;

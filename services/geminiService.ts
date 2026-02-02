@@ -1,32 +1,27 @@
 import { GoogleGenAI } from "@google/genai";
 import { MODEL_NAMES } from "../constants";
 
-export const generateImageContent = async (prompt: string, size: "1K" | "2K" | "4K" = "1K"): Promise<string | null> => {
-  try {
+const getApiKey = async () => {
     const apiKey = process.env.API_KEY;
     if (!apiKey) throw new Error("API Key missing");
-    
-    // We check for key selection for Pro models as per guidelines
     if (window.aistudio && window.aistudio.hasSelectedApiKey) {
       const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-         // The main App flow handles key selection, but purely defensive here
-         return null;
-      }
+      if (!hasKey) return null;
     }
+    return apiKey;
+};
+
+export const generateImageContent = async (prompt: string, size: "1K" | "2K" | "4K" = "1K"): Promise<string | null> => {
+  try {
+    const apiKey = await getApiKey();
+    if (!apiKey) return null;
 
     const ai = new GoogleGenAI({ apiKey });
-    
     const response = await ai.models.generateContent({
       model: MODEL_NAMES.IMAGE_GEN,
-      contents: {
-        parts: [{ text: prompt }]
-      },
+      contents: { parts: [{ text: prompt }] },
       config: {
-        imageConfig: {
-          imageSize: size,
-          aspectRatio: "1:1"
-        }
+        imageConfig: { imageSize: size, aspectRatio: "1:1" }
       }
     });
 
@@ -36,9 +31,76 @@ export const generateImageContent = async (prompt: string, size: "1K" | "2K" | "
       }
     }
     return null;
-
   } catch (error) {
     console.error("Image generation failed:", error);
     return null;
   }
+};
+
+export const generateSimulationCode = async (prompt: string): Promise<string | null> => {
+    try {
+        const apiKey = await getApiKey();
+        if (!apiKey) return null;
+
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+            model: MODEL_NAMES.THINKING,
+            contents: { 
+                parts: [{ text: `Create a self-contained, interactive HTML/JS simulation for: "${prompt}". 
+                - Use Tailwind CSS for styling.
+                - It must fit within a 500x400px container.
+                - Return ONLY the HTML code (no markdown fences). 
+                - Ensure it is visually appealing and interactive.` }] 
+            }
+        });
+
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) return null;
+        
+        // Clean markdown if present
+        return text.replace(/```html/g, '').replace(/```/g, '').trim();
+    } catch (error) {
+        console.error("Simulation generation failed:", error);
+        return null;
+    }
+};
+
+export const generateVectorDrawing = async (prompt: string): Promise<any[] | null> => {
+    try {
+        const apiKey = await getApiKey();
+        if (!apiKey) return null;
+
+        const ai = new GoogleGenAI({ apiKey });
+        
+        // We ask Gemini 3 to return a JSON list of our tool calls to construct the drawing
+        const response = await ai.models.generateContent({
+            model: MODEL_NAMES.THINKING,
+            contents: {
+                parts: [{ text: `Generate a vector drawing for: "${prompt}".
+                Return a JSON object with a "elements" property containing an array of shapes.
+                Supported shapes:
+                - { type: "rect", x, y, width, height, color, filled }
+                - { type: "circle", x, y, radius, color, filled }
+                - { type: "triangle", x, y, width, height, color, filled }
+                - { type: "line", x1, y1, x2, y2, color, strokeWidth }
+                - { type: "path", pathData, color, strokeWidth }
+                
+                Coordinates should be relative to (0,0) as the top-left of the drawing.
+                Keep it simple but recognizable.
+                Output ONLY JSON.` }]
+            },
+            config: {
+                responseMimeType: "application/json"
+            }
+        });
+
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) return null;
+        
+        const json = JSON.parse(text);
+        return json.elements || [];
+    } catch (error) {
+        console.error("Vector generation failed:", error);
+        return null;
+    }
 };

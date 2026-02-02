@@ -23,7 +23,7 @@ import { MODEL_NAMES, whiteboardTools, SYSTEM_INSTRUCTION } from './constants';
 import { Toolbar } from './components/Toolbar';
 import { SimulationNode } from './components/SimulationNode';
 import { TextNode } from './components/TextNode';
-import { generateImageContent } from './services/geminiService';
+import { generateImageContent, generateSimulationCode, generateVectorDrawing } from './services/geminiService';
 import { Send, MessageSquare, Loader2 } from 'lucide-react';
 
 // --- Utils ---
@@ -197,7 +197,14 @@ const App: React.FC = () => {
         const id = Date.now().toString() + Math.random();
 
         try {
-            if (name === 'draw_rectangle' || name === 'draw_circle' || name === 'draw_triangle') {
+            if (name === 'pan_view') {
+                // Center view on x,y
+                const newX = args.x - (window.innerWidth / view.scale) / 2;
+                const newY = args.y - (window.innerHeight / view.scale) / 2;
+                setView(v => ({ ...v, x: newX, y: newY }));
+                result = { result: "View moved." };
+
+            } else if (name === 'draw_rectangle' || name === 'draw_circle' || name === 'draw_triangle') {
                 let type = ElementType.RECT;
                 if (name === 'draw_circle') type = ElementType.CIRCLE;
                 if (name === 'draw_triangle') type = ElementType.TRIANGLE;
@@ -210,11 +217,7 @@ const App: React.FC = () => {
                     color: args.color,
                     filled: args.filled
                 };
-                // Adjust for radius center
-                if (name === 'draw_circle') {
-                    el.x -= args.radius;
-                    el.y -= args.radius;
-                }
+                if (name === 'draw_circle') { el.x -= args.radius; el.y -= args.radius; }
                 addedElements.push(el);
 
             } else if (name === 'draw_line') {
@@ -256,13 +259,63 @@ const App: React.FC = () => {
                 } else result = { result: "Failed." };
 
             } else if (name === 'generate_simulation') {
-                addedElements.push({
-                    id, type: ElementType.SIMULATION,
-                    x: args.x, y: args.y, width: 500, height: 400,
-                    code: args.code, title: args.title, color: '#fff'
-                });
-                result = { result: "Simulation created." };
+                // Now we call Gemini 3 to get the code
+                const code = await generateSimulationCode(args.prompt);
+                if (code) {
+                    addedElements.push({
+                        id, type: ElementType.SIMULATION,
+                        x: args.x, y: args.y, width: 500, height: 400,
+                        code: code, title: args.title, color: '#fff'
+                    });
+                    result = { result: "Simulation created." };
+                } else result = { result: "Failed to generate simulation code." };
+
+            } else if (name === 'generate_vector_drawing') {
+                // Call Gemini 3 to get JSON shapes
+                const shapes = await generateVectorDrawing(args.prompt);
+                if (shapes && Array.isArray(shapes)) {
+                    shapes.forEach((s: any) => {
+                        // Map JSON shapes to CanvasElements
+                        const subId = Date.now().toString() + Math.random();
+                        const baseX = args.x + (s.x || 0);
+                        const baseY = args.y + (s.y || 0);
+
+                        if (s.type === 'rect' || s.type === 'triangle') {
+                             addedElements.push({
+                                 id: subId, type: s.type === 'rect' ? ElementType.RECT : ElementType.TRIANGLE,
+                                 x: baseX, y: baseY, width: s.width, height: s.height,
+                                 color: s.color, filled: s.filled
+                             });
+                        } else if (s.type === 'circle') {
+                             addedElements.push({
+                                 id: subId, type: ElementType.CIRCLE,
+                                 x: baseX - s.radius, y: baseY - s.radius,
+                                 width: s.radius*2, height: s.radius*2,
+                                 color: s.color, filled: s.filled
+                             });
+                        } else if (s.type === 'line') {
+                             addedElements.push({
+                                 id: subId, type: ElementType.LINE,
+                                 x: args.x + s.x1, y: args.y + s.y1,
+                                 x2: args.x + s.x2, y2: args.y + s.y2,
+                                 color: s.color, strokeWidth: s.strokeWidth, filled: true
+                             });
+                        } else if (s.type === 'path') {
+                             addedElements.push({
+                                 id: subId, type: ElementType.PATH,
+                                 x: args.x, y: args.y, // Path data assumes local coords, but we might offset?
+                                 // Usually pathData is absolute, so we might just assume relative 
+                                 // For simplicity, we assume pathData is correct relative to view if transformed, 
+                                 // or we just trust the vector generator output.
+                                 points: [], pathData: s.pathData,
+                                 color: s.color, strokeWidth: s.strokeWidth, filled: false
+                             });
+                        }
+                    });
+                    result = { result: "Vector drawing created." };
+                } else result = { result: "Failed to generate vector drawing." };
             }
+
         } catch (e) { console.error(e); result = { result: "Error." }; }
         responses.push({ id: fc.id, name: fc.name, response: result });
     }
@@ -270,7 +323,7 @@ const App: React.FC = () => {
     if (shouldClear || addedElements.length > 0) {
         setElements(prev => {
             const next = shouldClear ? [...addedElements] : [...prev, ...addedElements];
-            pushToHistory(next); // Helper already sets Elements
+            pushToHistory(next);
             return next;
         });
     }
