@@ -3,7 +3,10 @@ import { ToolType, AIState } from '../types';
 import { COLORS } from '../constants';
 import { 
   MousePointer2, 
+  Hand,
   Pencil, 
+  Minus,
+  Triangle,
   Square, 
   Circle, 
   Eraser, 
@@ -13,7 +16,8 @@ import {
   Redo2,
   ZoomIn,
   ZoomOut,
-  Type as TypeIcon
+  Type as TypeIcon,
+  BoxSelect
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -21,6 +25,8 @@ interface ToolbarProps {
   setTool: (t: ToolType) => void;
   currentColor: string;
   setColor: (c: string) => void;
+  filled: boolean;
+  setFilled: (f: boolean) => void;
   aiState: AIState;
   onToggleMic: () => void;
   onUndo: () => void;
@@ -31,7 +37,6 @@ interface ToolbarProps {
   canRedo: boolean;
 }
 
-// Independent component to handle high-frequency volume updates
 const AudioVisualizer: React.FC<{ isSpeaking: boolean }> = ({ isSpeaking }) => {
     const [volume, setVolume] = useState(0);
 
@@ -39,7 +44,6 @@ const AudioVisualizer: React.FC<{ isSpeaking: boolean }> = ({ isSpeaking }) => {
         const handleVolumeUpdate = (e: CustomEvent) => {
             setVolume(e.detail);
         };
-        
         window.addEventListener('audio-volume-update', handleVolumeUpdate as EventListener);
         return () => window.removeEventListener('audio-volume-update', handleVolumeUpdate as EventListener);
     }, []);
@@ -54,7 +58,6 @@ const AudioVisualizer: React.FC<{ isSpeaking: boolean }> = ({ isSpeaking }) => {
                     heightPerc = 20 + (volume * 400 * (1 - i * 0.1));
                 }
                 const height = `${Math.min(100, Math.max(20, heightPerc))}%`;
-
                 return (
                     <div
                         key={i}
@@ -72,6 +75,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   setTool,
   currentColor,
   setColor,
+  filled,
+  setFilled,
   aiState,
   onToggleMic,
   onUndo,
@@ -92,7 +97,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       }`}
     >
       <Icon size={20} />
-      {/* Tooltip */}
       <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
         {label}
       </span>
@@ -128,20 +132,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
          
          <div className="flex flex-col gap-1 w-full border-b border-gray-100 pb-2 mb-1">
              <div className="flex gap-1">
-                <button onClick={onUndo} disabled={!canUndo} className={`flex-1 p-2 rounded hover:bg-gray-100 flex justify-center text-gray-700 ${!canUndo && 'opacity-30'}`} title="Undo (Ctrl+Z)">
+                <button onClick={onUndo} disabled={!canUndo} className={`flex-1 p-2 rounded hover:bg-gray-100 flex justify-center text-gray-700 ${!canUndo && 'opacity-30'}`} title="Undo">
                     <Undo2 size={18} />
                 </button>
-                <button onClick={onRedo} disabled={!canRedo} className={`flex-1 p-2 rounded hover:bg-gray-100 flex justify-center text-gray-700 ${!canRedo && 'opacity-30'}`} title="Redo (Ctrl+Y)">
+                <button onClick={onRedo} disabled={!canRedo} className={`flex-1 p-2 rounded hover:bg-gray-100 flex justify-center text-gray-700 ${!canRedo && 'opacity-30'}`} title="Redo">
                     <Redo2 size={18} />
                 </button>
              </div>
          </div>
 
-         <ToolButton tool={ToolType.SELECT} icon={MousePointer2} label="Select & Move" />
+         <ToolButton tool={ToolType.SELECT} icon={MousePointer2} label="Select" />
+         <ToolButton tool={ToolType.PAN} icon={Hand} label="Pan View" />
          <ToolButton tool={ToolType.PEN} icon={Pencil} label="Pencil" />
-         <ToolButton tool={ToolType.TEXT} icon={TypeIcon} label="Text / Math" />
+         <ToolButton tool={ToolType.LINE} icon={Minus} label="Line" />
+         <ToolButton tool={ToolType.TRIANGLE} icon={Triangle} label="Triangle" />
          <ToolButton tool={ToolType.RECTANGLE} icon={Square} label="Rectangle" />
          <ToolButton tool={ToolType.CIRCLE} icon={Circle} label="Circle" />
+         <ToolButton tool={ToolType.TEXT} icon={TypeIcon} label="Text / Math" />
          <ToolButton tool={ToolType.ERASER} icon={Eraser} label="Eraser" />
 
          <div className="flex flex-col gap-1 w-full border-t border-gray-100 pt-2 mt-1">
@@ -154,8 +161,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
          </div>
       </div>
 
-      {/* Colors Group */}
+      {/* Colors & Fill Group */}
       <div className="flex flex-col items-center gap-2 p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 pointer-events-auto">
+        <button
+            onClick={() => setFilled(!filled)}
+            className={`w-8 h-8 rounded-lg mb-2 flex items-center justify-center transition-colors ${filled ? 'bg-gray-800 text-white' : 'bg-white border border-gray-300 text-gray-800'}`}
+            title={filled ? "Solid Fill" : "Outline Only"}
+        >
+            {filled ? <BoxSelect size={16} fill="currentColor" /> : <BoxSelect size={16} />}
+        </button>
+        <div className="w-full h-px bg-gray-200 mb-2" />
         {COLORS.map((c) => (
             <button
             key={c}
