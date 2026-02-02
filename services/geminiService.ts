@@ -17,9 +17,12 @@ export const generateImageContent = async (prompt: string, size: "1K" | "2K" | "
     if (!apiKey) return null;
 
     const ai = new GoogleGenAI({ apiKey });
+    // Append minimal/clean style request to match whiteboard aesthetic
+    const fullPrompt = `${prompt}. Minimalist style, isolated subject on white background if possible, high quality.`;
+    
     const response = await ai.models.generateContent({
       model: MODEL_NAMES.IMAGE_GEN,
-      contents: { parts: [{ text: prompt }] },
+      contents: { parts: [{ text: fullPrompt }] },
       config: {
         imageConfig: { imageSize: size, aspectRatio: "1:1" }
       }
@@ -48,6 +51,7 @@ export const generateSimulationCode = async (prompt: string): Promise<string | n
             contents: { 
                 parts: [{ text: `Create a self-contained, interactive HTML/JS simulation for: "${prompt}". 
                 - Use Tailwind CSS for styling.
+                - Important: Use a clean, modern design with a WHITE background (bg-white) and dark text (text-slate-900) to fit a light-mode whiteboard.
                 - It must fit within a 500x400px container.
                 - Return ONLY the HTML code (no markdown fences). 
                 - Ensure it is visually appealing and interactive.` }] 
@@ -86,7 +90,7 @@ export const generateVectorDrawing = async (prompt: string): Promise<any[] | nul
                 - { type: "path", pathData, color, strokeWidth }
                 
                 Coordinates should be relative to (0,0) as the top-left of the drawing.
-                Keep it simple but recognizable.
+                Style Guide: Use neutral, professional colors (Slate, Blue, Black) that look good on a white background. Avoid neon or overly bright colors unless necessary.
                 Output ONLY JSON.` }]
             },
             config: {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ToolType, AIState } from '../types';
 import { COLORS } from '../constants';
 import { 
@@ -16,8 +16,12 @@ import {
   Redo2,
   ZoomIn,
   ZoomOut,
+  Maximize,
   Type as TypeIcon,
-  BoxSelect
+  BoxSelect,
+  Loader2,
+  Image as ImageIcon,
+  Trash2
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -28,11 +32,16 @@ interface ToolbarProps {
   filled: boolean;
   setFilled: (f: boolean) => void;
   aiState: AIState;
+  isAIProcessing: boolean;
   onToggleMic: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onFitView: () => void;
+  onImageUpload: () => void;
+  onDelete: () => void;
+  hasSelection: boolean;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -49,8 +58,8 @@ const AudioVisualizer: React.FC<{ isSpeaking: boolean }> = ({ isSpeaking }) => {
     }, []);
 
     return (
-        <div className="flex gap-1 h-8 items-end justify-center w-full px-1 mb-1">
-            {[1, 2, 3, 4].map(i => {
+        <div className="flex gap-0.5 h-6 items-end justify-center px-1">
+            {[1, 2, 3].map(i => {
                 let heightPerc = 20;
                 if (isSpeaking) {
                     heightPerc = 40 + (volume * 100 * (i % 2 === 0 ? 1 : 0.5));
@@ -61,7 +70,7 @@ const AudioVisualizer: React.FC<{ isSpeaking: boolean }> = ({ isSpeaking }) => {
                 return (
                     <div
                         key={i}
-                        className={`w-1.5 rounded-full transition-all duration-100 ease-out ${isSpeaking ? 'bg-indigo-400' : 'bg-emerald-400'}`}
+                        className={`w-1 rounded-full transition-all duration-100 ease-out ${isSpeaking ? 'bg-indigo-400' : 'bg-emerald-400'}`}
                         style={{ height }}
                     />
                 );
@@ -78,112 +87,131 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   filled,
   setFilled,
   aiState,
+  isAIProcessing,
   onToggleMic,
   onUndo,
   onRedo,
   onZoomIn,
   onZoomOut,
+  onFitView,
+  onImageUpload,
+  onDelete,
+  hasSelection,
   canUndo,
   canRedo
 }) => {
   
-  const ToolButton = ({ tool, icon: Icon, label }: { tool: ToolType, icon: any, label: string }) => (
+  const ToolButton = ({ tool, icon: Icon, label, onClick, isActive }: { tool?: ToolType, icon: any, label: string, onClick?: () => void, isActive?: boolean }) => (
     <button 
-      onClick={() => setTool(tool)} 
-      className={`group relative p-2.5 rounded-xl transition-all w-full flex items-center justify-center ${
-        currentTool === tool
-          ? 'bg-blue-600 text-white shadow-md'
+      onClick={onClick || (() => tool && setTool(tool))} 
+      className={`group relative p-2 rounded-lg transition-all flex items-center justify-center ${
+        isActive || currentTool === tool
+          ? 'bg-blue-600 text-white shadow-sm'
           : 'text-gray-600 hover:bg-gray-100'
       }`}
+      title={label}
     >
       <Icon size={20} />
-      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-        {label}
-      </span>
     </button>
   );
 
   return (
-    <div className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-40 pointer-events-none select-none">
-      
-      {/* AI Control */}
-      <div className="flex flex-col items-center p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 pointer-events-auto transition-all duration-300">
-         <button
-            onClick={onToggleMic}
-            className={`
-                w-12 h-12 rounded-full flex items-center justify-center transition-all mb-2
-                ${aiState.isConnected ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200'}
-                text-white
-            `}
-            title={aiState.isConnected ? "Disconnect Live" : "Connect Gemini Live"}
-         >
-            {aiState.isConnected ? <MicOff size={24} /> : <Mic size={24} />}
-         </button>
-
-         {aiState.isConnected && <AudioVisualizer isSpeaking={aiState.modelState === 'speaking'} />}
-         
-         <span className="text-[9px] font-bold tracking-widest uppercase text-gray-400">
-             {aiState.isConnected ? (aiState.modelState === 'speaking' ? 'TALKING' : 'LISTENING') : 'OFFLINE'}
-         </span>
+    <>
+      {/* LEFT TOOLBAR: Creation Tools */}
+      <div className="fixed left-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-40">
+        <div className="flex flex-col gap-1 p-1.5 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-200">
+             <ToolButton tool={ToolType.SELECT} icon={MousePointer2} label="Select (V)" />
+             <ToolButton tool={ToolType.PAN} icon={Hand} label="Pan View (H)" />
+             <div className="w-full h-px bg-gray-100 my-0.5" />
+             <ToolButton tool={ToolType.PEN} icon={Pencil} label="Pencil (P)" />
+             <ToolButton tool={ToolType.TEXT} icon={TypeIcon} label="Text (T)" />
+             <ToolButton tool={ToolType.ERASER} icon={Eraser} label="Eraser (E)" />
+             <div className="w-full h-px bg-gray-100 my-0.5" />
+             <ToolButton tool={ToolType.LINE} icon={Minus} label="Line" />
+             <ToolButton tool={ToolType.RECTANGLE} icon={Square} label="Rectangle" />
+             <ToolButton tool={ToolType.CIRCLE} icon={Circle} label="Circle" />
+             <ToolButton tool={ToolType.TRIANGLE} icon={Triangle} label="Triangle" />
+             <ToolButton icon={ImageIcon} label="Upload Image" onClick={onImageUpload} isActive={false} />
+        </div>
+        
+        {/* Undo/Redo Group */}
+        <div className="flex flex-col gap-1 p-1.5 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-200">
+             <button onClick={onUndo} disabled={!canUndo} className={`p-2 rounded hover:bg-gray-100 text-gray-700 ${!canUndo && 'opacity-30'}`}><Undo2 size={20} /></button>
+             <button onClick={onRedo} disabled={!canRedo} className={`p-2 rounded hover:bg-gray-100 text-gray-700 ${!canRedo && 'opacity-30'}`}><Redo2 size={20} /></button>
+        </div>
       </div>
 
-      {/* Main Tools Group */}
-      <div className="flex flex-col items-center gap-1 p-2 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 pointer-events-auto">
-         
-         <div className="flex flex-col gap-1 w-full border-b border-gray-100 pb-2 mb-1">
-             <div className="flex gap-1">
-                <button onClick={onUndo} disabled={!canUndo} className={`flex-1 p-2 rounded hover:bg-gray-100 flex justify-center text-gray-700 ${!canUndo && 'opacity-30'}`} title="Undo">
-                    <Undo2 size={18} />
-                </button>
-                <button onClick={onRedo} disabled={!canRedo} className={`flex-1 p-2 rounded hover:bg-gray-100 flex justify-center text-gray-700 ${!canRedo && 'opacity-30'}`} title="Redo">
-                    <Redo2 size={18} />
-                </button>
+      {/* RIGHT TOOLBAR: Properties & AI */}
+      <div className="fixed right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40 items-end">
+        
+        {/* Gemini Live Button */}
+        <div className="flex flex-col items-center p-2 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-200 transition-all duration-300">
+           <button
+              onClick={onToggleMic}
+              className={`
+                  w-10 h-10 rounded-full flex items-center justify-center transition-all
+                  ${aiState.isConnected ? 'bg-red-500 hover:bg-red-600 shadow-red-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}
+                  text-white shadow-lg
+              `}
+              title={aiState.isConnected ? "Disconnect Live" : "Connect Gemini Live"}
+           >
+              {aiState.isConnected ? <MicOff size={20} /> : <Mic size={20} />}
+           </button>
+           
+           {aiState.isConnected && (
+               <div className="mt-2 w-full flex justify-center">
+                   <AudioVisualizer isSpeaking={aiState.modelState === 'speaking'} />
+               </div>
+           )}
+
+           {isAIProcessing && (
+              <div className="mt-2 animate-spin text-blue-600"><Loader2 size={16} /></div>
+           )}
+        </div>
+
+        {/* Object Properties (Color, Fill) */}
+        <div className="flex flex-col gap-2 p-2 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-200">
+             <div className="grid grid-cols-2 gap-2">
+                {COLORS.slice(0, 8).map((c) => (
+                    <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={`w-6 h-6 rounded-full border border-black/10 transition-transform ${
+                        currentColor === c ? 'ring-2 ring-offset-2 ring-gray-900 scale-110' : ''
+                    }`}
+                    style={{ backgroundColor: c }}
+                    />
+                ))}
              </div>
-         </div>
+             <div className="w-full h-px bg-gray-200" />
+             <div className="flex gap-2 justify-center">
+                 <button
+                    onClick={() => setFilled(!filled)}
+                    className={`p-1.5 rounded-md transition-colors ${filled ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-800'}`}
+                    title={filled ? "Solid Fill" : "Outline Only"}
+                >
+                    {filled ? <BoxSelect size={18} fill="currentColor" /> : <BoxSelect size={18} />}
+                </button>
+                {hasSelection && (
+                     <button
+                        onClick={onDelete}
+                        className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                        title="Delete Selected"
+                    >
+                        <Trash2 size={18} />
+                    </button>
+                )}
+             </div>
+        </div>
 
-         <ToolButton tool={ToolType.SELECT} icon={MousePointer2} label="Select" />
-         <ToolButton tool={ToolType.PAN} icon={Hand} label="Pan View" />
-         <ToolButton tool={ToolType.PEN} icon={Pencil} label="Pencil" />
-         <ToolButton tool={ToolType.LINE} icon={Minus} label="Line" />
-         <ToolButton tool={ToolType.TRIANGLE} icon={Triangle} label="Triangle" />
-         <ToolButton tool={ToolType.RECTANGLE} icon={Square} label="Rectangle" />
-         <ToolButton tool={ToolType.CIRCLE} icon={Circle} label="Circle" />
-         <ToolButton tool={ToolType.TEXT} icon={TypeIcon} label="Text / Math" />
-         <ToolButton tool={ToolType.ERASER} icon={Eraser} label="Eraser" />
+        {/* View Controls */}
+        <div className="flex flex-col gap-1 p-1.5 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-200">
+             <button onClick={onZoomIn} className="p-2 rounded hover:bg-gray-100 text-gray-700"><ZoomIn size={20} /></button>
+             <button onClick={onZoomOut} className="p-2 rounded hover:bg-gray-100 text-gray-700"><ZoomOut size={20} /></button>
+             <button onClick={onFitView} className="p-2 rounded hover:bg-gray-100 text-gray-700"><Maximize size={20} /></button>
+        </div>
 
-         <div className="flex flex-col gap-1 w-full border-t border-gray-100 pt-2 mt-1">
-             <button onClick={onZoomIn} className="p-2 rounded hover:bg-gray-100 flex justify-center text-gray-700" title="Zoom In">
-                <ZoomIn size={18} />
-             </button>
-             <button onClick={onZoomOut} className="p-2 rounded hover:bg-gray-100 flex justify-center text-gray-700" title="Zoom Out">
-                <ZoomOut size={18} />
-             </button>
-         </div>
       </div>
-
-      {/* Colors & Fill Group */}
-      <div className="flex flex-col items-center gap-2 p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 pointer-events-auto">
-        <button
-            onClick={() => setFilled(!filled)}
-            className={`w-8 h-8 rounded-lg mb-2 flex items-center justify-center transition-colors ${filled ? 'bg-gray-800 text-white' : 'bg-white border border-gray-300 text-gray-800'}`}
-            title={filled ? "Solid Fill" : "Outline Only"}
-        >
-            {filled ? <BoxSelect size={16} fill="currentColor" /> : <BoxSelect size={16} />}
-        </button>
-        <div className="w-full h-px bg-gray-200 mb-2" />
-        {COLORS.map((c) => (
-            <button
-            key={c}
-            onClick={() => setColor(c)}
-            className={`w-5 h-5 rounded-full border border-black/10 transition-transform hover:scale-110 ${
-                currentColor === c ? 'ring-2 ring-offset-2 ring-gray-900 scale-110' : ''
-            }`}
-            style={{ backgroundColor: c }}
-            aria-label={`Select color ${c}`}
-            />
-        ))}
-      </div>
-
-    </div>
+    </>
   );
 };

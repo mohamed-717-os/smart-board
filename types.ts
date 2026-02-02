@@ -33,17 +33,17 @@ export interface BaseElement {
   y: number;
   rotation?: number;
   color: string;
-  filled?: boolean; // New: Solid vs Transparent
+  filled?: boolean;
+  isLoading?: boolean; // New: For background generation state
 }
 
 export interface PathElement extends BaseElement {
   type: ElementType.PATH;
-  points: Point[];     // Used for user drawing
-  pathData?: string;   // Used for AI drawing (SVG d string)
+  points: Point[];
+  pathData?: string;
   strokeWidth: number;
 }
 
-// Line is simple start/end
 export interface LineElement extends BaseElement {
     type: ElementType.LINE;
     x2: number;
@@ -55,7 +55,6 @@ export interface ShapeElement extends BaseElement {
   type: ElementType.RECT | ElementType.CIRCLE | ElementType.TRIANGLE;
   width: number;
   height: number;
-  // For triangle, x/y is bounding box top-left
 }
 
 export interface ImageElement extends BaseElement {
@@ -76,7 +75,7 @@ export interface SimulationElement extends BaseElement {
   type: ElementType.SIMULATION;
   width: number;
   height: number;
-  code: string; // HTML/JS content
+  code: string;
   title: string;
 }
 
@@ -92,4 +91,10 @@ export interface AIState {
   isConnected: boolean;
   isListening: boolean;
   modelState: 'idle' | 'listening' | 'thinking' | 'speaking';
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
 }

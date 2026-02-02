@@ -21,6 +21,32 @@ export const whiteboardTools: FunctionDeclaration[] = [
     },
   },
   {
+    name: 'move_element_at',
+    description: 'Moves an element found at a specific location to a new location. Use this when asked to move something the user is pointing at or describing.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        x: { type: Type.NUMBER, description: 'Current X location of the element' },
+        y: { type: Type.NUMBER, description: 'Current Y location of the element' },
+        new_x: { type: Type.NUMBER, description: 'New X location' },
+        new_y: { type: Type.NUMBER, description: 'New Y location' },
+      },
+      required: ['x', 'y', 'new_x', 'new_y'],
+    },
+  },
+  {
+    name: 'delete_element_at',
+    description: 'Deletes an element found at a specific location.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        x: { type: Type.NUMBER, description: 'X location of the element to delete' },
+        y: { type: Type.NUMBER, description: 'Y location of the element to delete' },
+      },
+      required: ['x', 'y'],
+    },
+  },
+  {
     name: 'draw_rectangle',
     description: 'Draws a rectangle.',
     parameters: {
@@ -175,6 +201,7 @@ export const COLORS = [
 
 export const SYSTEM_INSTRUCTION = `You are a smart, collaborative whiteboard agent.
 - **View Control**: If you create content outside the current view, use 'pan_view' to move the camera to it.
+- **Manipulation**: Use 'move_element_at' and 'delete_element_at' to modify existing items.
 - **Simple Actions**: For simple shapes, text, or moving objects, perform them directly.
 - **Complex Vectors**: For structured diagrams (flowcharts, architecture, complex shapes), use 'generate_vector_drawing' (Calls Gemini 3).
 - **Raster Images**: For artistic, photorealistic, or very complex scenes, use 'generate_image' (Calls Imagen).

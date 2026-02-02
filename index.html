@@ -23,6 +23,17 @@
       
       /* MathJax specific overrides for foreignObject */
       mjx-container { font-size: 100% !important; }
+
+      /* Markdown Styles */
+      .markdown-content ul { list-style-type: disc; padding-left: 1.2em; }
+      .markdown-content ol { list-style-type: decimal; padding-left: 1.2em; }
+      .markdown-content strong { font-weight: bold; }
+      .markdown-content em { font-style: italic; }
+      .markdown-content h1 { font-size: 1.5em; font-weight: bold; margin-bottom: 0.2em; }
+      .markdown-content h2 { font-size: 1.2em; font-weight: bold; margin-bottom: 0.2em; }
+      .markdown-content blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.5em; color: #475569; }
+      .markdown-content pre { background: #f1f5f9; padding: 0.2em; border-radius: 4px; }
+      .markdown-content p { margin: 0; padding: 0; }
     </style>
   <script type="importmap">
 {
@@ -31,7 +42,8 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
     "react/": "https://esm.sh/react@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "react-markdown": "https://esm.sh/react-markdown@9?bundle"
   }
 }
 </script>
