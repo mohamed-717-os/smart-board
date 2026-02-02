@@ -1,3 +1,4 @@
+
 export enum ToolType {
   SELECT = 'select',
   PEN = 'pen',
@@ -77,5 +78,4 @@ export interface AIState {
   isConnected: boolean;
   isListening: boolean;
   modelState: 'idle' | 'listening' | 'thinking' | 'speaking';
-  volume: number;
 }

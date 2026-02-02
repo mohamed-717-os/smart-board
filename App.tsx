@@ -128,8 +128,7 @@ const App: React.FC = () => {
   const [aiState, setAiState] = useState<AIState>({
     isConnected: false,
     isListening: false,
-    modelState: 'idle',
-    volume: 0
+    modelState: 'idle'
   });
   const [chatInputText, setChatInputText] = useState("");
   const [isChatProcessing, setIsChatProcessing] = useState(false);
@@ -209,14 +208,15 @@ const App: React.FC = () => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                // Downscale to 640px max width for performance and bandwidth
-                const maxWidth = 640;
+                // Aggressive optimization: 500px max width is sufficient for AI context
+                // Reducing pixel count significantly speeds up toDataURL
+                const maxWidth = 500;
                 const scale = Math.min(1, maxWidth / window.innerWidth);
                 
                 canvas.width = window.innerWidth * scale;
                 canvas.height = window.innerHeight * scale;
                 
-                const ctx = canvas.getContext('2d');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 if (!ctx) {
                     URL.revokeObjectURL(url);
                     resolve(null);
@@ -227,8 +227,8 @@ const App: React.FC = () => {
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
-                // Low quality JPEG (0.5) to keep payload small
-                const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+                // Low quality JPEG (0.4) for minimal payload size
+                const base64 = canvas.toDataURL('image/jpeg', 0.4).split(',')[1];
                 URL.revokeObjectURL(url);
                 resolve(base64);
             };
@@ -732,11 +732,9 @@ const App: React.FC = () => {
                             }
                             const rms = Math.sqrt(sum / (inputData.length/10));
                             
-                            const now = Date.now();
-                            if (now - volumeThrottleRef.current > 100) { // Throttled to 100ms
-                                volumeThrottleRef.current = now;
-                                setAiState(prev => ({ ...prev, volume: rms }));
-                            }
+                            // DISPATCH CUSTOM EVENT FOR VISUALIZER
+                            // This prevents React re-renders for the whole app
+                            window.dispatchEvent(new CustomEvent('audio-volume-update', { detail: rms }));
                         };
                         
                         source.connect(processor);

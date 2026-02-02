@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ToolType, AIState } from '../types';
 import { COLORS } from '../constants';
 import { 
@@ -30,6 +30,42 @@ interface ToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
 }
+
+// Independent component to handle high-frequency volume updates
+const AudioVisualizer: React.FC<{ isSpeaking: boolean }> = ({ isSpeaking }) => {
+    const [volume, setVolume] = useState(0);
+
+    useEffect(() => {
+        const handleVolumeUpdate = (e: CustomEvent) => {
+            setVolume(e.detail);
+        };
+        
+        window.addEventListener('audio-volume-update', handleVolumeUpdate as EventListener);
+        return () => window.removeEventListener('audio-volume-update', handleVolumeUpdate as EventListener);
+    }, []);
+
+    return (
+        <div className="flex gap-1 h-8 items-end justify-center w-full px-1 mb-1">
+            {[1, 2, 3, 4].map(i => {
+                let heightPerc = 20;
+                if (isSpeaking) {
+                    heightPerc = 40 + (volume * 100 * (i % 2 === 0 ? 1 : 0.5));
+                } else {
+                    heightPerc = 20 + (volume * 400 * (1 - i * 0.1));
+                }
+                const height = `${Math.min(100, Math.max(20, heightPerc))}%`;
+
+                return (
+                    <div
+                        key={i}
+                        className={`w-1.5 rounded-full transition-all duration-100 ease-out ${isSpeaking ? 'bg-indigo-400' : 'bg-emerald-400'}`}
+                        style={{ height }}
+                    />
+                );
+            })}
+        </div>
+    );
+};
 
 export const Toolbar: React.FC<ToolbarProps> = ({
   currentTool,
@@ -80,31 +116,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             {aiState.isConnected ? <MicOff size={24} /> : <Mic size={24} />}
          </button>
 
-         {aiState.isConnected && (
-             <div className="flex gap-1 h-8 items-end justify-center w-full px-1 mb-1">
-                 {[1,2,3,4].map(i => {
-                     // Deterministic height based on volume instead of random to prevent layout thrashing
-                     // Multipliers create a "wave" effect that is stable per volume level
-                     const isSpeaking = aiState.modelState === 'speaking';
-                     let heightPerc = 20;
-                     if (isSpeaking) {
-                        heightPerc = 40 + (aiState.volume * 100 * (i % 2 === 0 ? 1 : 0.5));
-                     } else {
-                        heightPerc = 20 + (aiState.volume * 400 * (1 - i * 0.1));
-                     }
-                     
-                     const height = `${Math.min(100, Math.max(20, heightPerc))}%`;
-                     
-                     return (
-                        <div 
-                            key={i} 
-                            className={`w-1.5 rounded-full transition-all duration-100 ease-out ${isSpeaking ? 'bg-indigo-400' : 'bg-emerald-400'}`}
-                            style={{ height }} 
-                        />
-                     )
-                 })}
-             </div>
-         )}
+         {aiState.isConnected && <AudioVisualizer isSpeaking={aiState.modelState === 'speaking'} />}
          
          <span className="text-[9px] font-bold tracking-widest uppercase text-gray-400">
              {aiState.isConnected ? (aiState.modelState === 'speaking' ? 'TALKING' : 'LISTENING') : 'OFFLINE'}
