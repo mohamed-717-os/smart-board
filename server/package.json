@@ -1,0 +1,16 @@
+{
+    "name": "smart-board-server",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "@google-cloud/vertexai": "^1.10.0",
+        "@google/genai": "^1.39.0",
+        "cors": "^2.8.5",
+        "express": "^4.21.2",
+        "ws": "^8.19.0"
+    }
+}

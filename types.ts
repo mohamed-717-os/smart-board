@@ -45,10 +45,10 @@ export interface PathElement extends BaseElement {
 }
 
 export interface LineElement extends BaseElement {
-    type: ElementType.LINE;
-    x2: number;
-    y2: number;
-    strokeWidth: number;
+  type: ElementType.LINE;
+  x2: number;
+  y2: number;
+  strokeWidth: number;
 }
 
 export interface ShapeElement extends BaseElement {
@@ -90,7 +90,7 @@ export interface ViewState {
 export interface AIState {
   isConnected: boolean;
   isListening: boolean;
-  modelState: 'idle' | 'listening' | 'thinking' | 'speaking';
+  modelState: 'idle' | 'listening' | 'thinking' | 'speaking' | 'connecting';
 }
 
 export interface ChatMessage {
