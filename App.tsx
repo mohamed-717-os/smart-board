@@ -26,7 +26,7 @@ import { MODEL_NAMES, whiteboardTools, SYSTEM_INSTRUCTION } from './constants';
 import { Toolbar } from './components/Toolbar';
 import { SimulationNode } from './components/SimulationNode';
 import { TextNode } from './components/TextNode';
-import { generateImageContent, generateSimulationCode, generateVectorDrawing, sendChatProxy } from './services/geminiService';
+import { generateImageContent, generateSimulationCode, generateVectorDrawing, sendChatProxy, API_BASE_URL } from './services/geminiService';
 import { Send, MessageSquare, Loader2, X, Mic, Square, Sparkles } from 'lucide-react';
 
 // --- Utils ---
@@ -90,8 +90,8 @@ function createBlob(data: Float32Array): GenAIBlob {
     }
     return {
         data: encodeAudio(new Uint8Array(int16.buffer)),
-        mimeType: 'audio/pcm;rate=16000',
-    };
+        mime_type: 'audio/pcm;rate=16000',
+    } as any;
 }
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -167,6 +167,7 @@ const App: React.FC = () => {
     const streamRef = useRef<MediaStream | null>(null);
     const isConnectingRef = useRef(false);
     const videoIntervalRef = useRef<number | undefined>(undefined);
+    const apiKeyRef = useRef<string | null>(null);
 
     // State Refs for Callbacks
     const viewRef = useRef(view);
@@ -690,20 +691,24 @@ const App: React.FC = () => {
         if (liveSession.current || isConnectingRef.current) return;
         isConnectingRef.current = true;
         setAiState(s => ({ ...s, modelState: 'connecting' }));
-
         try {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/api/live`;
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = API_BASE_URL
+                ? API_BASE_URL.replace('http', 'ws') + '/api/live'
+                : `${wsProtocol}//${window.location.host}/api/live`;
             const ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
-                console.log("Connected to Live Proxy");
+                console.log("Connected to Live API Proxy");
                 const setup = {
                     setup: {
                         model: `models/${MODEL_NAMES.LIVE}`,
-                        generationConfig: { responseModalities: ["audio"] },
-                        systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-                        tools: [{ functionDeclarations: whiteboardTools }]
+                        generation_config: { response_modalities: ["audio"] },
+                        system_instruction: {
+                            role: "system",
+                            parts: [{ text: SYSTEM_INSTRUCTION }]
+                        },
+                        tools: [{ function_declarations: whiteboardTools }]
                     }
                 };
                 ws.send(JSON.stringify(setup));
@@ -712,49 +717,54 @@ const App: React.FC = () => {
             ws.onmessage = async (event) => {
                 const data = JSON.parse(event.data);
 
-                if (data.setupComplete) {
+                if (data.setupComplete || data.setup_complete) {
                     setAiState(s => ({ ...s, isConnected: true, modelState: 'idle' }));
                     isConnectingRef.current = false;
                     startStreaming(ws);
                 }
 
-                if (data.serverContent) {
-                    const { modelTurn, interleaved } = data.serverContent;
-                    if (modelTurn) {
-                        for (const part of modelTurn.parts) {
-                            if (part.inlineData) {
+                if (data.serverContent || data.server_content) {
+                    const content = data.serverContent || data.server_content;
+                    const turn = content.modelTurn || content.model_turn;
+                    if (turn) {
+                        for (const part of turn.parts) {
+                            if (part.inlineData || part.inline_data) {
+                                const inline = part.inlineData || part.inline_data;
                                 if (!audioContextRef.current) audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-                                playAudio(part.inlineData.data, audioContextRef.current, nextStartTime);
+                                playAudio(inline.data, audioContextRef.current, nextStartTime);
                                 setAiState(s => ({ ...s, modelState: 'speaking' }));
                             }
-                            if (part.call) {
-                                const toolResponses = await executeTools(part.call.functionCalls);
+                            const call = part.call || part.function_call || part.functionCall;
+                            if (call) {
+                                const toolResponses = await executeTools(call.functionCalls || call.function_calls);
                                 ws.send(JSON.stringify({
-                                    toolResponse: { functionResponses: toolResponses.map(tr => ({ response: tr.response, id: tr.id })) }
+                                    tool_response: { function_responses: toolResponses.map(tr => ({ response: tr.response, id: tr.id })) }
                                 }));
                             }
                         }
                     }
-                    if (interleaved) {
-                        for (const part of interleaved.parts) {
-                            if (part.inlineData) {
+                    if (content.interleaved) {
+                        for (const part of content.interleaved.parts) {
+                            if (part.inlineData || part.inline_data) {
+                                const inline = part.inlineData || part.inline_data;
                                 if (!audioContextRef.current) audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-                                playAudio(part.inlineData.data, audioContextRef.current, nextStartTime);
+                                playAudio(inline.data, audioContextRef.current, nextStartTime);
                             }
                         }
                     }
                 }
 
-                if (data.toolCall) {
-                    const toolResponses = await executeTools(data.toolCall.functionCalls);
+                if (data.toolCall || data.tool_call) {
+                    const call = data.toolCall || data.tool_call;
+                    const toolResponses = await executeTools(call.functionCalls || call.function_calls);
                     ws.send(JSON.stringify({
-                        toolResponse: { functionResponses: toolResponses.map(tr => ({ response: tr.response, id: tr.id })) }
+                        tool_response: { function_responses: toolResponses.map(tr => ({ response: tr.response, id: tr.id })) }
                     }));
                 }
             };
 
             ws.onclose = () => {
-                console.log("Live Proxy disconnected");
+                console.log("Google Live API disconnected");
                 disconnect();
             };
 
@@ -786,7 +796,7 @@ const App: React.FC = () => {
                 const inputData = e.inputBuffer.getChannelData(0);
                 const pcmData = createBlob(inputData);
                 if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ realtimeInput: { mediaChunks: [pcmData] } }));
+                    ws.send(JSON.stringify({ realtime_input: { media_chunks: [pcmData] } }));
                 }
             };
 
@@ -794,7 +804,7 @@ const App: React.FC = () => {
             videoIntervalRef.current = window.setInterval(async () => {
                 const b64 = await getScreenCapture();
                 if (b64 && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ data: b64, mimeType: 'image/jpeg' }] } }));
+                    ws.send(JSON.stringify({ realtime_input: { media_chunks: [{ data: b64, mime_type: 'image/jpeg' }] } }));
                 }
             }, 2000);
 

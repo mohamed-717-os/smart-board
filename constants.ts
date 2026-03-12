@@ -2,7 +2,7 @@
 import { FunctionDeclaration, Type } from "@google/genai";
 
 export const MODEL_NAMES = {
-  LIVE: 'gemini-2.5-flash-native-audio-preview-12-2025',
+  LIVE: 'gemini-2.0-flash-exp',
   IMAGE_GEN: 'gemini-3-pro-image-preview', // High quality image gen
   THINKING: 'gemini-3-pro-preview', // Complex reasoning
 };

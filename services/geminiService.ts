@@ -1,4 +1,4 @@
-const API_BASE_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+export const API_BASE_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
   ? 'http://localhost:8080'
   : ''; // Use relative path in production (same domain)
 
